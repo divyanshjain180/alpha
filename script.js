@@ -1,110 +1,126 @@
 // --- GET HTML ELEMENTS ---
-const instructionText = document.getElementById('instruction-text');
+const messageText = document.getElementById('message-text');
 const guessInput = document.getElementById('guess-input');
 const guessButton = document.getElementById('guess-button');
-const messageText = document.getElementById('message-text');
 const attemptsLeftSpan = document.getElementById('attempts-left');
 const roundsWonSpan = document.getElementById('rounds-won');
 const totalScoreSpan = document.getElementById('total-score');
 const playAgainButton = document.getElementById('play-again-button');
+const hudContainer = document.querySelector('.hud-container');
 
-// --- GAME VARIABLES ---
-const minRange = 1;
-const maxRange = 100;
-const maxAttempts = 10;
+// --- GAME CONFIGURATION ---
+const MIN_RANGE = 1;
+const MAX_RANGE = 100;
+const MAX_ATTEMPTS = 10;
 
+// --- GAME STATE ---
 let totalScore = 0;
 let roundsWon = 0;
 let numberToGuess = 0;
 let attempts = 0;
-let gameActive = true;
+let gameActive = false;
 
 // --- FUNCTIONS ---
 
-// Function to start a new round
 function startNewRound() {
-    // Generate a new random number
-    numberToGuess = Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
-    attempts = 0;
     gameActive = true;
+    attempts = 0;
+    numberToGuess = Math.floor(Math.random() * (MAX_RANGE - MIN_RANGE + 1)) + MIN_RANGE;
 
-    // Reset the UI
-    instructionText.textContent = `I'm thinking of a number between ${minRange} and ${maxRange}.`;
-    messageText.textContent = "Good luck!";
-    messageText.style.color = '#333';
+    // Reset UI elements and styles
+    messageText.textContent = "AWAITING INPUT...";
+    messageText.style.color = "var(--primary-glow)";
     guessInput.value = "";
     guessInput.disabled = false;
     guessButton.disabled = false;
-    attemptsLeftSpan.textContent = maxAttempts;
     playAgainButton.classList.add('hidden');
+    hudContainer.style.borderColor = "var(--primary-glow)";
+    hudContainer.style.boxShadow = "0 0 25px var(--primary-glow), inset 0 0 15px rgba(0, 229, 255, 0.5)";
+    
+    // Update displays
+    updateDisplays();
 }
 
-// Function to handle the user's guess
-function checkGuess() {
+function updateDisplays() {
+    attemptsLeftSpan.textContent = MAX_ATTEMPTS - attempts;
+    roundsWonSpan.textContent = roundsWon;
+    totalScoreSpan.textContent = totalScore;
+}
+
+function handleGuess() {
     if (!gameActive) return;
 
     const userGuess = parseInt(guessInput.value);
 
-    // Validate input
-    if (isNaN(userGuess) || userGuess < minRange || userGuess > maxRange) {
-        messageText.textContent = `Please enter a number between ${minRange} and ${maxRange}.`;
-        messageText.style.color = 'orange';
+    // Input validation
+    if (isNaN(userGuess) || userGuess < MIN_RANGE || userGuess > MAX_RANGE) {
+        flashMessage(`INVALID INPUT: ENTER NUMBER [${MIN_RANGE}-${MAX_RANGE}]`, "#ff9800");
+        hudContainer.classList.add('animate-shake');
+        setTimeout(() => hudContainer.classList.remove('animate-shake'), 500);
+        guessInput.value = "";
         return;
     }
 
     attempts++;
-    
+    let message = "";
+    let color = "";
+
     if (userGuess < numberToGuess) {
-        messageText.textContent = "Too low! Try a higher number.";
-        messageText.style.color = 'blue';
+        message = `// ANALYSIS: TOO LOW. TARGET IS HIGHER.`;
+        color = "#00e5ff"; // Primary glow
     } else if (userGuess > numberToGuess) {
-        messageText.textContent = "Too high! Try a lower number.";
-        messageText.style.color = 'red';
+        message = `// ANALYSIS: TOO HIGH. TARGET IS LOWER.`;
+        color = "#ff4d4d"; // Reddish for high
     } else {
-        // Correct guess
-        messageText.textContent = `Congratulations! You guessed it in ${attempts} attempts.`;
-        messageText.style.color = 'green';
+        message = `// PASSCODE ACCEPTED: ${numberToGuess}. SYSTEM UNLOCKED.`;
+        color = "#00ff7f"; // Green for success
         roundsWon++;
-        totalScore += (maxAttempts - attempts + 1);
-        endRound();
+        totalScore += (MAX_ATTEMPTS - attempts + 1);
+        endRound(true);
     }
+    
+    flashMessage(message, color);
+    updateDisplays();
 
-    attemptsLeftSpan.textContent = maxAttempts - attempts;
-
-    // Check for loss condition
-    if (attempts >= maxAttempts && gameActive) {
-        messageText.textContent = `You're out of attempts! The number was ${numberToGuess}.`;
-        messageText.style.color = 'red';
-        endRound();
+    // Check for loss condition after updating displays
+    if (attempts >= MAX_ATTEMPTS && gameActive) {
+        message = `// ATTEMPTS EXCEEDED. LOCKDOWN INITIATED. CORRECT CODE: ${numberToGuess}`;
+        color = "#ff00c1"; // Secondary glow (magenta) for failure
+        flashMessage(message, color);
+        endRound(false);
     }
 }
 
-// Function to end the current round
-function endRound() {
+function flashMessage(msg, color) {
+    messageText.textContent = msg;
+    messageText.style.color = color;
+}
+
+function endRound(isWin) {
     gameActive = false;
     guessInput.disabled = true;
     guessButton.disabled = true;
-    roundsWonSpan.textContent = roundsWon;
-    totalScoreSpan.textContent = totalScore;
     playAgainButton.classList.remove('hidden');
+
+    // Update HUD border color based on result
+    if (isWin) {
+        hudContainer.style.borderColor = "#00ff7f";
+        hudContainer.style.boxShadow = "0 0 25px #00ff7f, inset 0 0 15px rgba(0, 255, 127, 0.5)";
+    } else {
+        hudContainer.style.borderColor = "#ff00c1";
+        hudContainer.style.boxShadow = "0 0 25px #ff00c1, inset 0 0 15px rgba(255, 0, 193, 0.5)";
+    }
+    updateDisplays();
 }
 
-
 // --- EVENT LISTENERS ---
-
-// When the 'Guess' button is clicked
-guessButton.addEventListener('click', checkGuess);
-
-// Allow pressing 'Enter' to guess
-guessInput.addEventListener('keydown', function(event) {
+guessButton.addEventListener('click', handleGuess);
+guessInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
-        checkGuess();
+        handleGuess();
     }
 });
-
-// When the 'Play Again' button is clicked
 playAgainButton.addEventListener('click', startNewRound);
-
 
 // --- INITIALIZE GAME ---
 startNewRound();
